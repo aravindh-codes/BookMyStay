@@ -1,35 +1,29 @@
-import java.util.HashMap;
-import java.util.Map;
+import java.util.LinkedList;
+import java.util.Queue;
 
 /**
- * ================================================================
- * CLASS - Room
- * ================================================================
+ * ================================================
+ * CLASS - Reservation
+ * ================================================
  *
- * Domain model representing a room type.
- * Provides descriptive information used by search services.
+ * Use Case 5: Booking Request (FIFO)
  *
- * @version 4.0
+ * Represents a guest's booking request.
+ *
+ * @version 5.0
  */
-class Room {
+class Reservation {
 
+    private String guestName;
     private String roomType;
-    private int numberOfBeds;
-    private int squareFeet;
-    private double pricePerNight;
 
-    public Room(String roomType, int numberOfBeds, int squareFeet, double pricePerNight) {
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
         this.roomType = roomType;
-        this.numberOfBeds = numberOfBeds;
-        this.squareFeet = squareFeet;
-        this.pricePerNight = pricePerNight;
     }
 
-    @Override
-    public String toString() {
-        return "Beds: " + numberOfBeds +
-                "\nSize: " + squareFeet + " sqft" +
-                "\nPrice per night: " + pricePerNight;
+    public String getGuestName() {
+        return guestName;
     }
 
     public String getRoomType() {
@@ -39,105 +33,71 @@ class Room {
 
 /**
  * ================================================================
- * CLASS - RoomInventory
+ * CLASS - BookingRequestQueue
  * ================================================================
  *
- * Centralized storage for room availability.
- * Acts as the single source of truth for inventory.
+ * Manages booking requests using FIFO Queue.
  *
- * @version 4.0
+ * @version 5.0
  */
-class RoomInventory {
+class BookingRequestQueue {
 
-    private Map<String, Integer> roomAvailability;
+    private Queue<Reservation> requestQueue;
 
-    public RoomInventory() {
-        roomAvailability = new HashMap<>();
-        initializeInventory();
+    public BookingRequestQueue() {
+        requestQueue = new LinkedList<>();
     }
 
-    private void initializeInventory() {
-        roomAvailability.put("Single", 5);
-        roomAvailability.put("Double", 3);
-        roomAvailability.put("Suite", 2);
+    public void addRequest(Reservation reservation) {
+        requestQueue.offer(reservation);
     }
 
-    public Map<String, Integer> getRoomAvailability() {
-        return roomAvailability;
+    public Reservation getNextRequest() {
+        return requestQueue.poll();
+    }
+
+    public boolean hasPendingRequests() {
+        return !requestQueue.isEmpty();
     }
 }
 
 /**
- * ================================================================
- * CLASS - RoomSearchService
- * ================================================================
- *
- * Provides read-only search functionality for guests.
- * Retrieves availability from inventory and details from Room objects.
- *
- * @version 4.0
- */
-class RoomSearchService {
-
-    public void searchAvailableRooms(
-            RoomInventory inventory,
-            Room singleRoom,
-            Room doubleRoom,
-            Room suiteRoom) {
-
-        Map<String, Integer> availability = inventory.getRoomAvailability();
-
-        System.out.println("Room Search\n");
-
-        if (availability.get("Single") > 0) {
-            System.out.println("Single Room:");
-            System.out.println(singleRoom);
-            System.out.println("Available: " + availability.get("Single") + "\n");
-        }
-
-        if (availability.get("Double") > 0) {
-            System.out.println("Double Room:");
-            System.out.println(doubleRoom);
-            System.out.println("Available: " + availability.get("Double") + "\n");
-        }
-
-        if (availability.get("Suite") > 0) {
-            System.out.println("Suite Room:");
-            System.out.println(suiteRoom);
-            System.out.println("Available: " + availability.get("Suite"));
-        }
-    }
-}
-
-/**
- * ================================================================
+ * ============================================================
  * MAIN CLASS - BookMyStay
- * ================================================================
+ * ============================================================
  *
- * Use Case 4: Room Search & Availability Check
+ * Use Case 5: Booking Request (First-Come-First-Served)
  *
- * Demonstrates how guests can view available rooms
- * without modifying inventory data.
+ * Demonstrates fair booking request handling
+ * using a FIFO queue.
  *
- * @version 4.0
+ * @version 5.0
  */
 public class BookMyStay {
 
     public static void main(String[] args) {
 
-        RoomInventory inventory = new RoomInventory();
+        System.out.println("Booking Request Queue");
 
-        Room singleRoom = new Room("Single", 1, 250, 1500.0);
-        Room doubleRoom = new Room("Double", 2, 400, 2500.0);
-        Room suiteRoom = new Room("Suite", 3, 750, 5000.0);
+        BookingRequestQueue bookingQueue = new BookingRequestQueue();
 
-        RoomSearchService searchService = new RoomSearchService();
+        Reservation r1 = new Reservation("Abhi", "Single");
+        Reservation r2 = new Reservation("Subha", "Double");
+        Reservation r3 = new Reservation("Vanmathi", "Suite");
 
-        searchService.searchAvailableRooms(
-                inventory,
-                singleRoom,
-                doubleRoom,
-                suiteRoom
-        );
+        bookingQueue.addRequest(r1);
+        bookingQueue.addRequest(r2);
+        bookingQueue.addRequest(r3);
+
+        while (bookingQueue.hasPendingRequests()) {
+            Reservation next = bookingQueue.getNextRequest();
+
+            System.out.println(
+                    "Processing booking for Guest: "
+                            + next.getGuestName()
+                            + ", Room Type: "
+                            + next.getRoomType()
+            );
+        }
     }
 }
