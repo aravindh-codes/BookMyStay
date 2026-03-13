@@ -1,35 +1,26 @@
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
- * ================================================================
- * CLASS - Room
- * ================================================================
+ * ================================================
+ * CLASS - Reservation
+ * ================================================
  *
- * Domain model representing a room type.
- * Provides descriptive information used by search services.
+ * Represents a guest booking request.
  *
- * @version 4.0
+ * @version 6.0
  */
-class Room {
+class Reservation {
 
+    private String guestName;
     private String roomType;
-    private int numberOfBeds;
-    private int squareFeet;
-    private double pricePerNight;
 
-    public Room(String roomType, int numberOfBeds, int squareFeet, double pricePerNight) {
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
         this.roomType = roomType;
-        this.numberOfBeds = numberOfBeds;
-        this.squareFeet = squareFeet;
-        this.pricePerNight = pricePerNight;
     }
 
-    @Override
-    public String toString() {
-        return "Beds: " + numberOfBeds +
-                "\nSize: " + squareFeet + " sqft" +
-                "\nPrice per night: " + pricePerNight;
+    public String getGuestName() {
+        return guestName;
     }
 
     public String getRoomType() {
@@ -38,14 +29,43 @@ class Room {
 }
 
 /**
- * ================================================================
+ * ====================================================
+ * CLASS - BookingRequestQueue
+ * ====================================================
+ *
+ * Handles booking requests in FIFO order.
+ *
+ * @version 6.0
+ */
+class BookingRequestQueue {
+
+    private Queue<Reservation> requestQueue;
+
+    public BookingRequestQueue() {
+        requestQueue = new LinkedList<>();
+    }
+
+    public void addRequest(Reservation reservation) {
+        requestQueue.offer(reservation);
+    }
+
+    public Reservation getNextRequest() {
+        return requestQueue.poll();
+    }
+
+    public boolean hasPendingRequests() {
+        return !requestQueue.isEmpty();
+    }
+}
+
+/**
+ * ====================================================
  * CLASS - RoomInventory
- * ================================================================
+ * ====================================================
  *
- * Centralized storage for room availability.
- * Acts as the single source of truth for inventory.
+ * Stores room availability.
  *
- * @version 4.0
+ * @version 6.0
  */
 class RoomInventory {
 
@@ -57,87 +77,115 @@ class RoomInventory {
     }
 
     private void initializeInventory() {
-        roomAvailability.put("Single", 5);
-        roomAvailability.put("Double", 3);
-        roomAvailability.put("Suite", 2);
+        roomAvailability.put("Single", 2);
+        roomAvailability.put("Double", 2);
+        roomAvailability.put("Suite", 1);
     }
 
     public Map<String, Integer> getRoomAvailability() {
         return roomAvailability;
     }
-}
 
-/**
- * ================================================================
- * CLASS - RoomSearchService
- * ================================================================
- *
- * Provides read-only search functionality for guests.
- * Retrieves availability from inventory and details from Room objects.
- *
- * @version 4.0
- */
-class RoomSearchService {
+    public int getAvailability(String roomType) {
+        return roomAvailability.getOrDefault(roomType, 0);
+    }
 
-    public void searchAvailableRooms(
-            RoomInventory inventory,
-            Room singleRoom,
-            Room doubleRoom,
-            Room suiteRoom) {
-
-        Map<String, Integer> availability = inventory.getRoomAvailability();
-
-        System.out.println("Room Search\n");
-
-        if (availability.get("Single") > 0) {
-            System.out.println("Single Room:");
-            System.out.println(singleRoom);
-            System.out.println("Available: " + availability.get("Single") + "\n");
-        }
-
-        if (availability.get("Double") > 0) {
-            System.out.println("Double Room:");
-            System.out.println(doubleRoom);
-            System.out.println("Available: " + availability.get("Double") + "\n");
-        }
-
-        if (availability.get("Suite") > 0) {
-            System.out.println("Suite Room:");
-            System.out.println(suiteRoom);
-            System.out.println("Available: " + availability.get("Suite"));
-        }
+    public void decrementRoom(String roomType) {
+        roomAvailability.put(roomType, roomAvailability.get(roomType) - 1);
     }
 }
 
 /**
- * ================================================================
+ * ====================================================
+ * CLASS - RoomAllocationService
+ * ====================================================
+ *
+ * Confirms booking requests and assigns rooms safely.
+ *
+ * @version 6.0
+ */
+class RoomAllocationService {
+
+    private Set<String> allocatedRoomIds;
+    private Map<String, Set<String>> assignedRoomsByType;
+
+    public RoomAllocationService() {
+        allocatedRoomIds = new HashSet<>();
+        assignedRoomsByType = new HashMap<>();
+    }
+
+    public void allocateRoom(Reservation reservation, RoomInventory inventory) {
+
+        String roomType = reservation.getRoomType();
+
+        if (inventory.getAvailability(roomType) <= 0) {
+            System.out.println("No rooms available for " + roomType +
+                    " (Guest: " + reservation.getGuestName() + ")");
+            return;
+        }
+
+        String roomId = generateRoomId(roomType);
+
+        allocatedRoomIds.add(roomId);
+
+        assignedRoomsByType
+                .computeIfAbsent(roomType, k -> new HashSet<>())
+                .add(roomId);
+
+        inventory.decrementRoom(roomType);
+
+        System.out.println("Reservation Confirmed -> Guest: "
+                + reservation.getGuestName()
+                + ", Room Type: " + roomType
+                + ", Room ID: " + roomId);
+    }
+
+    private String generateRoomId(String roomType) {
+
+        String roomId;
+
+        do {
+            roomId = roomType.substring(0, 2).toUpperCase()
+                    + (int)(Math.random() * 1000);
+        } while (allocatedRoomIds.contains(roomId));
+
+        return roomId;
+    }
+}
+
+/**
+ * ====================================================
  * MAIN CLASS - BookMyStay
- * ================================================================
+ * ====================================================
  *
- * Use Case 4: Room Search & Availability Check
+ * Use Case 6: Reservation Confirmation & Room Allocation
  *
- * Demonstrates how guests can view available rooms
- * without modifying inventory data.
+ * Demonstrates safe booking confirmation
+ * and prevention of double booking.
  *
- * @version 4.0
+ * @version 6.0
  */
 public class BookMyStay {
 
     public static void main(String[] args) {
 
+        System.out.println("Room Allocation System\n");
+
         RoomInventory inventory = new RoomInventory();
+        BookingRequestQueue queue = new BookingRequestQueue();
+        RoomAllocationService allocator = new RoomAllocationService();
 
-        Room singleRoom = new Room("Single", 1, 250, 1500.0);
-        Room doubleRoom = new Room("Double", 2, 400, 2500.0);
-        Room suiteRoom = new Room("Suite", 3, 750, 5000.0);
+        queue.addRequest(new Reservation("Abhi", "Single"));
+        queue.addRequest(new Reservation("Subha", "Double"));
+        queue.addRequest(new Reservation("Vanmathi", "Suite"));
+        queue.addRequest(new Reservation("Ravi", "Single"));
 
-        RoomSearchService searchService = new RoomSearchService();
+        while (queue.hasPendingRequests()) {
+            Reservation next = queue.getNextRequest();
+            allocator.allocateRoom(next, inventory);
+        }
 
-        searchService.searchAvailableRooms(
-                inventory,
-                singleRoom,
-                doubleRoom,
-                suiteRoom
-        );
+        System.out.println("\nRemaining Inventory: " +
+                inventory.getRoomAvailability());
     }
 }
