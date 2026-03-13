@@ -15,6 +15,7 @@ Safe inventory updates and booking confirmation
 Prevention of double-booking
 
 Use Cases Implemented
+
 UC1 – Application Startup
 Initializes the application and displays a welcome message.
 
